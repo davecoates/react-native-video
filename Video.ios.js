@@ -11,6 +11,7 @@ var Video = React.createClass({
     /* Native only */
     src: PropTypes.object,
     seek: PropTypes.number,
+    captureFrame: PropTypes.bool,
 
     /* Wrapper component */
     source: PropTypes.object,
@@ -29,6 +30,10 @@ var Video = React.createClass({
 
   setNativeProps(props) {
     this.refs[VIDEO_REF].setNativeProps(props);
+  },
+
+  _onCaptureFrame(event) {
+    this.props.onCaptureFrame && this.props.onCaptureFrame(event.nativeEvent);
   },
 
   _onLoadStart(event) {
@@ -53,6 +58,10 @@ var Video = React.createClass({
 
   seek(time) {
     this.setNativeProps({seek: parseFloat(time)});
+  },
+
+  captureFrame(selection) {
+    this.setNativeProps({captureFrame: selection});
   },
 
   _onEnd(event) {
@@ -89,6 +98,7 @@ var Video = React.createClass({
         isAsset,
         type: source.type || 'mp4'
       },
+      onVideoCaptureFrame: this._onCaptureFrame,
       onVideoLoad: this._onLoad,
       onVideoProgress: this._onProgress,
       onVideoEnd: this._onEnd,

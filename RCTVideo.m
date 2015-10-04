@@ -347,6 +347,62 @@ static NSString *const playbackLikelyToKeepUpKeyPath = @"playbackLikelyToKeepUp"
   [self applyModifiers];
 }
 
+- (void)setCaptureFrame:(NSDictionary *)selection
+{
+    UIImage *image = [self screenshotFromPlayer:_player];
+    
+    float viewWidth = [RCTConvert float:selection[@"viewWidth"]];
+    float viewHeight = [RCTConvert float:selection[@"viewHeight"]];
+    float rh = image.size.height / viewHeight;
+    float rw = image.size.width / viewWidth;
+    float height = [RCTConvert float:selection[@"height"]] * rh;
+    float width = [RCTConvert float:selection[@"width"]] * rw;
+    float x = [RCTConvert float:selection[@"x"]] * rw;
+    float y = [RCTConvert float:selection[@"y"]] * rh;
+    
+    CGRect fromRect = CGRectMake(x, y, width, height); // or whatever rectangle
+    CGImageRef drawImage = CGImageCreateWithImageInRect(image.CGImage, fromRect);
+    UIImage *newImage = [UIImage imageWithCGImage:drawImage];
+    CGImageRelease(drawImage);
+    
+    // Create path.
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *filePath = [[paths objectAtIndex:0] stringByAppendingPathComponent:[NSString stringWithFormat:@"mask%f.png", x]];
+    
+    // Save image.
+    [UIImagePNGRepresentation(newImage) writeToFile:filePath atomically:YES];
+    [_eventDispatcher sendInputEventWithName:@"onVideoCaptureFrame"
+                                            body:@{@"frame": @{
+                                                       @"path": filePath,
+                                                       @"domain": @"Test"},
+                                                   @"target": self.reactTag}];
+
+}
+
+- (UIImage *)screenshotFromPlayer:(AVPlayer *)player
+{
+    
+    CMTime actualTime;
+    NSError *error;
+    
+    AVAssetImageGenerator *generator = [[AVAssetImageGenerator alloc] initWithAsset:player.currentItem.asset];
+    generator.appliesPreferredTrackTransform = YES;
+    CGImageRef cgIm = [generator copyCGImageAtTime:player.currentTime
+                                        actualTime:&actualTime
+                                             error:&error];
+    UIImage *image = [UIImage imageWithCGImage:cgIm];
+    CFRelease(cgIm);
+    NSLog(@"GO THE IMAGE");
+    if (nil != error) {
+        NSLog(@"Error making screenshot: %@", [error localizedDescription]);
+        NSLog(@"Actual screenshot time: %f Requested screenshot time: %f", CMTimeGetSeconds(actualTime),
+              CMTimeGetSeconds(player.currentTime));
+        return nil;
+    }
+    
+    return image;
+}
+
 - (void)applyModifiers
 {
   if (_muted) {
